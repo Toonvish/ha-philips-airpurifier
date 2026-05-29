@@ -125,7 +125,8 @@ async def test_coordinator_async_update_data(
 
     assert result == updated_status
     assert result["pm25"] == 25
-    mock_coap_client.get_status.assert_called_once()
+    # One-shot reads must not register a CoAP observation (philips-airctrl >= 1.1.0).
+    mock_coap_client.get_status.assert_called_once_with(observe=False)
 
 
 async def test_coordinator_async_update_data_error(

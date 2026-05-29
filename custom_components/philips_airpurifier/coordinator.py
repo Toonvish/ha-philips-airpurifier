@@ -86,6 +86,11 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return self.device_info.name
 
     @property
+    def mac(self) -> str | None:
+        """Return the device MAC address, if known (from DHCP discovery)."""
+        return self.device_info.mac
+
+    @property
     def model_config(self) -> DeviceModelConfig:
         """Return the device model configuration."""
         model = self.device_info.model
@@ -107,7 +112,9 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from the device (used for initial refresh and fallback)."""
         try:
-            status, timeout = await self.client.get_status()
+            # One-shot read: ongoing updates come from the observe stream, so
+            # avoid registering a redundant observation (philips-airctrl >= 1.1.0).
+            status, timeout = await self.client.get_status(observe=False)
             self._timeout = timeout
             self._mark_available()
             return status
@@ -191,7 +198,8 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             _LOGGER.info("Reconnected to %s", self.host)
 
             try:
-                status, timeout = await self.client.get_status()
+                # One-shot read before re-establishing the observe stream.
+                status, timeout = await self.client.get_status(observe=False)
                 self._timeout = timeout
                 self._mark_available()
                 self.async_set_updated_data(status)
@@ -211,7 +219,9 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def async_first_refresh_and_observe(self) -> None:
         """Perform first refresh and start observing."""
         try:
-            status, timeout = await self.client.get_status()
+            # One-shot initial read; continuous updates come from the observe
+            # stream started below, so don't register a second observation here.
+            status, timeout = await self.client.get_status(observe=False)
             self._timeout = timeout
             self._mark_available()
             self.async_set_updated_data(status)
