@@ -17,7 +17,7 @@ dev = [
     # scripts/lint-check, scripts/type-check and the lint CI workflow, which all
     # invoke `uv run ruff` / `uv run pyright`. ruff is pinned to the
     # pre-commit-config version to avoid format drift between the two.
-    "ruff==0.15.1",
+    "ruff==0.15.15",
     "pyright",
     # The homeassistant floor keeps the resolver pinned to the latest stable
     # Home Assistant. Without a floor, `uv lock --upgrade` can resolve backwards
