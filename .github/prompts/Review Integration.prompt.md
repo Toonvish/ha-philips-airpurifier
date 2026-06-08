@@ -1,6 +1,14 @@
 ---
 agent: "agent"
-tools: ["search/codebase", "search", "runCommands"]
+tools:
+  [
+    "search/codebase",
+    "search",
+    "execute/getTerminalOutput",
+    "execute/runInTerminal",
+    "read/terminalLastCommand",
+    "read/terminalSelection"
+  ]
 description: "Comprehensive quality review of integration code and configuration"
 ---
 

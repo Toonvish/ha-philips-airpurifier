@@ -25,12 +25,14 @@ uv run mypy custom_components/                # Type checking (strict mode)
 ## Architecture
 
 ### Communication Pattern
+
 - **Local push** via CoAP protocol (no cloud, no polling)
 - `CoAPClient` from `philips-airctrl` handles encryption, sync, and observe
 - Coordinator uses `observe_status()` async iterator for real-time updates
 - Watchdog monitors connection health with automatic reconnection
 
 ### Key Files
+
 - `__init__.py` — Integration setup, icon system, platform forwarding
 - `coordinator.py` — `PhilipsAirPurifierCoordinator` (DataUpdateCoordinator) with CoAP push observation
 - `config_flow.py` — DHCP auto-discovery + manual IP config, model detection
@@ -40,19 +42,23 @@ uv run mypy custom_components/                # Type checking (strict mode)
 - `entity.py` — Base entity class (WIP)
 
 ### Device Model System
+
 Models in `philips.py` use class hierarchy: `PhilipsEntity` → `PhilipsGenericControlBase` → `PhilipsGenericFanBase` → API generation base → model-specific class. Each model class declares its available entities via class attributes (`AVAILABLE_SWITCHES`, `AVAILABLE_LIGHTS`, etc.).
 
 Three API generations with different key formats:
+
 - Gen1: simple keys (`pwr`, `mode`, `om`)
 - Gen2: `D01-XX`, `D03-XX` format
 - Gen3: `D01SXX`, `D03XXX` format
 
 ### Config Entry Pattern
+
 Uses `entry.runtime_data` typed as `PhilipsAirPurifierConfigEntry` to store the coordinator. Entity platforms access coordinator directly from the config entry.
 
 ## Quality Scale Target
 
 Targeting **platinum** quality scale per Home Assistant integration standards. Key requirements:
+
 - 100% test coverage (configured in pyproject.toml)
 - Strict mypy typing
 - Full compliance with HA integration quality scale rules
