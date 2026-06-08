@@ -5,7 +5,7 @@ filter_reset:
     replacing filters to reset usage tracking.
   target:
     entity:
-      integration: philips_airpurifier_coap
+      integration: philips_airpurifier
       domain:
         - fan
         - sensor
@@ -37,7 +37,7 @@ set_child_lock:
   description: Enable or disable child lock on the air purifier.
   target:
     entity:
-      integration: philips_airpurifier_coap
+      integration: philips_airpurifier
       domain:
         - fan
         - switch

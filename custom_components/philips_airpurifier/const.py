@@ -35,7 +35,7 @@ if TYPE_CHECKING:
         SwitchDescription,
     )
 
-DOMAIN = "philips_airpurifier_coap"
+DOMAIN = "philips_airpurifier"
 MANUFACTURER = "Philips"
 
 DATA_KEY_CLIENT = "client"

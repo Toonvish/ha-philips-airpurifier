@@ -1,6 +1,6 @@
 """Constants for Philips AirPurifier tests."""
 
-DOMAIN = "philips_airpurifier_coap"
+DOMAIN = "philips_airpurifier"
 
 TEST_HOST = "192.168.1.100"
 TEST_MODEL = "AC3858/51"

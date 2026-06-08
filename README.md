@@ -252,9 +252,9 @@ To enable detailed logging, add this to your `configuration.yaml`:
 ```yaml
 logger:
   logs:
-    custom_components.philips_airpurifier_coap: debug
+    custom_components.philips_airpurifier: debug
     coap: debug
-    aioairctrl: debug
+    philips_airctrl: debug
 ```
 
 Logs will be available in `home-assistant.log`.
@@ -280,14 +280,14 @@ python -m venv env
 source ./env/bin/activate  # On Windows: env\Scripts\activate
 
 # Install required package
-python -m pip install aioairctrl
+python -m pip install philips-airctrl
 ```
 
 #### 2. Collect Device Data
 
 ```bash
 # Replace $DEVICE_IP with your device's IP address
-aioairctrl --host $DEVICE_IP status --json
+philips-airctrl --host $DEVICE_IP status --json
 ```
 
 #### 3. Submit Data

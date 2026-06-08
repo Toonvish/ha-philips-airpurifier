@@ -49,7 +49,7 @@ async def _remove_duplicate_preferred_index_entity(
 
         for entity_id, entry in entity_registry.entities.items():
             if (
-                entry.platform == "philips_airpurifier_coap"
+                entry.platform == "philips_airpurifier"
                 and entry.unique_id
                 and f"{model}-{device_id}-d0312a#1".lower() in entry.unique_id.lower()
             ):

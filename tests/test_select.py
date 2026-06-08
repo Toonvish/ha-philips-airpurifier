@@ -318,7 +318,7 @@ async def test_remove_duplicate_preferred_index_entity_by_entity_id(
     entity_registry = er.async_get(hass)
     entity_registry.async_get_or_create(
         "select",
-        "philips_airpurifier_coap",
+        "philips_airpurifier",
         "AC4220/12-device-01-d0312a#1",
         suggested_object_id="living_room_preferred_index",
         config_entry=entry,
@@ -341,7 +341,7 @@ async def test_remove_duplicate_preferred_index_entity_by_unique_id_scan(
     entity_registry = er.async_get(hass)
     entity_registry.async_get_or_create(
         "select",
-        "philips_airpurifier_coap",
+        "philips_airpurifier",
         "AC4220/12-device-02-d0312a#1",
         suggested_object_id="some_other_entity",
         config_entry=entry,
@@ -377,7 +377,7 @@ async def test_remove_duplicate_preferred_index_entity_non_matching_unique_id_ke
     entity_registry = er.async_get(hass)
     kept = entity_registry.async_get_or_create(
         "select",
-        "philips_airpurifier_coap",
+        "philips_airpurifier",
         "AC4220/12-device-03-d0312a#2",
         suggested_object_id="living_room_preferred_index",
         config_entry=entry,
