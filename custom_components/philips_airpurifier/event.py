@@ -80,7 +80,7 @@ class PhilipsNotificationEvent(PhilipsAirPurifierEntity, EventEntity):
             if key in status:
                 try:
                     return key, int(status[key])
-                except TypeError, ValueError:
+                except (TypeError, ValueError):
                     return key, 0
         return None, 0
 
