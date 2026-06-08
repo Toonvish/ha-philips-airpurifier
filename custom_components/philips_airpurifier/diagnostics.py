@@ -84,9 +84,9 @@ async def async_get_config_entry_diagnostics(
             "state": entry.state.value,
         },
         "coordinator": {
-            "client_available": coordinator.client is not None,
-            "has_data": status is not None and len(status) > 0,
-            "status_keys": list(status.keys()) if status else [],
+            "client_available": True,
+            "has_data": len(status) > 0,
+            "status_keys": list(status.keys()),
         },
         "entities": {
             "total": len(entities),

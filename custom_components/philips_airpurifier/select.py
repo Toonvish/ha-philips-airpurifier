@@ -129,7 +129,7 @@ class PhilipsSelect(PhilipsAirPurifierEntity, SelectEntity):
 
     async def async_select_option(self, option: str) -> None:
         """Select an option."""
-        if option is None or len(option) == 0:
+        if not option:
             _LOGGER.error("Cannot set empty option '%s'", option)
             return
         try:

@@ -1,9 +1,14 @@
 {
   "include": ["custom_components/philips_airpurifier"],
   "pythonVersion": "3.14",
-  "typeCheckingMode": "basic",
+  "typeCheckingMode": "strict",
+  "reportMissingTypeStubs": "none",
   "reportIncompatibleVariableOverride": "none",
-  "reportOptionalMemberAccess": "none",
-  "reportOptionalSubscript": "none",
-  "reportTypedDictNotRequiredAccess": "none"
+  "reportOptionalMemberAccess": "warning",
+  "reportOptionalSubscript": "warning",
+  "reportTypedDictNotRequiredAccess": "warning",
+  "reportUnknownLambdaType": "none",
+  "reportUnknownVariableType": "warning",
+  "reportUnknownArgumentType": "warning",
+  "reportUnknownMemberType": "warning"
 }

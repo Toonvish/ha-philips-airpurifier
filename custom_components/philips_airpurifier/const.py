@@ -612,7 +612,7 @@ SENSOR_TYPES: dict[str, SensorDescription] = {
             23: "mdi:thermometer-high",
         },
         FanAttributes.LABEL: ATTR_TEMPERATURE,
-        FanAttributes.VALUE: lambda value, _: value / 10,
+        FanAttributes.VALUE: lambda value, _: float(value / 10) if value else 0,
         ATTR_STATE_CLASS: SensorStateClass.MEASUREMENT,
         FanAttributes.UNIT: UnitOfTemperature.CELSIUS,
     },
@@ -620,7 +620,7 @@ SENSOR_TYPES: dict[str, SensorDescription] = {
     PhilipsApi.WATER_LEVEL: {
         FanAttributes.ICON_MAP: {0: "mdi:water-alert", 10: "mdi:water"},
         FanAttributes.LABEL: FanAttributes.WATER_LEVEL,
-        FanAttributes.VALUE: lambda value, status: 0 if status.get("err") in [32768, 49408] else value,
+        FanAttributes.VALUE: lambda value, status: int(0 if status.get("err") in [32768, 49408] else value or 0),
         ATTR_STATE_CLASS: SensorStateClass.MEASUREMENT,
         FanAttributes.UNIT: PERCENTAGE,
         CONF_ENTITY_CATEGORY: EntityCategory.DIAGNOSTIC,
@@ -643,7 +643,7 @@ SENSOR_TYPES: dict[str, SensorDescription] = {
     PhilipsApi.RUNTIME: {
         FanAttributes.ICON_MAP: {0: "mdi:timer"},
         FanAttributes.LABEL: FanAttributes.RUNTIME,
-        FanAttributes.VALUE: lambda value, _: None if value is None else round(value / 3600000, 2),
+        FanAttributes.VALUE: lambda value, _: None if value is None else float(round(value / 3600000, 2)),
         ATTR_STATE_CLASS: SensorStateClass.TOTAL,
         ATTR_DEVICE_CLASS: SensorDeviceClass.DURATION,
         FanAttributes.UNIT: UnitOfTime.HOURS,
@@ -660,31 +660,33 @@ BINARY_SENSOR_TYPES: dict[str, SensorDescription] = {
         # test for out of water error, which is in bit 9 of the error number
         FanAttributes.LABEL: FanAttributes.WATER_TANK,
         ATTR_DEVICE_CLASS: SensorDeviceClass.MOISTURE,
-        FanAttributes.VALUE: lambda value: not value & (1 << 8),
+        FanAttributes.VALUE: lambda value: bool(not (value or 0) & (1 << 8)),
         CONF_ENTITY_CATEGORY: EntityCategory.DIAGNOSTIC,
     },
     PhilipsApi.NEW2_ERROR_CODE: {
         # test for out of water error, which is in bit 9 of the error number
         FanAttributes.LABEL: FanAttributes.WATER_TANK,
         ATTR_DEVICE_CLASS: SensorDeviceClass.MOISTURE,
-        FanAttributes.VALUE: lambda value: not value & (1 << 8),
+        FanAttributes.VALUE: lambda value: bool(not (value or 0) & (1 << 8)),
         CONF_ENTITY_CATEGORY: EntityCategory.DIAGNOSTIC,
     },
     PhilipsApi.FUNCTION: {
         # test if the water container is available and thus humidification switched on
         FanAttributes.LABEL: FanAttributes.HUMIDIFICATION,
-        FanAttributes.VALUE: lambda value: value == "PH",
+        FanAttributes.VALUE: lambda value: bool(value == "PH"),
     },
     PhilipsApi.NEW2_MODE_A: {
         # test if the water container is available and thus humidification switched on
         FanAttributes.LABEL: FanAttributes.HUMIDIFICATION,
-        FanAttributes.VALUE: lambda value: value == 4,
+        FanAttributes.VALUE: lambda value: bool(value == 4),
     },
     "AC3420_WATER_LEVEL": {
         # AC3420 specific water level detection using D0310A and D03240
         FanAttributes.LABEL: FanAttributes.WATER_TANK,
         ATTR_DEVICE_CLASS: SensorDeviceClass.MOISTURE,
-        FanAttributes.VALUE: lambda status: status.get("D0310A", 0) == 16 and status.get("D03240", 0) == 0,
+        FanAttributes.VALUE: lambda status: bool(
+            (status.get("D0310A") or 0) == 16 and (status.get("D03240") or 0) == 0
+        ),
         CONF_ENTITY_CATEGORY: EntityCategory.DIAGNOSTIC,
     },
 }

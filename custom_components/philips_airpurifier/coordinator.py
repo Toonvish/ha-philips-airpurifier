@@ -252,6 +252,5 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             with contextlib.suppress(asyncio.CancelledError):
                 await task
 
-        if self.client is not None:
-            with contextlib.suppress(Exception):
-                await self.client.shutdown()
+        with contextlib.suppress(Exception):
+            await self.client.shutdown()

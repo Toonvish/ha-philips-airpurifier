@@ -144,7 +144,7 @@ class PhilipsHeater(PhilipsAirPurifierEntity, ClimateEntity):
     @property
     def swing_mode(self) -> str | None:
         """Return the current swing mode."""
-        if not self._oscillation_key:
+        if not self._oscillation_key or not self._oscillation_modes:
             return None
 
         value = self._device_status.get(self._oscillation_key)
@@ -154,7 +154,7 @@ class PhilipsHeater(PhilipsAirPurifierEntity, ClimateEntity):
 
     async def async_set_swing_mode(self, swing_mode: str) -> None:
         """Set the swing mode of the heater."""
-        if not self._oscillation_key or swing_mode not in (SWING_ON, SWING_OFF):
+        if not self._oscillation_key or not self._oscillation_modes or swing_mode not in (SWING_ON, SWING_OFF):
             return
 
         value = self._oscillation_modes[SWITCH_ON] if swing_mode == SWING_ON else self._oscillation_modes[SWITCH_OFF]
