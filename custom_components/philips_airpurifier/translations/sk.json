@@ -4,7 +4,9 @@
     "abort": {
       "already_configured": "Zariadenie je už konfigurované",
       "model_unsupported": "Nepodporovaný model",
-      "timeout": "Časový limit, nemôže sa pripojiť k zariadeniu"
+      "different_device": "Zariadenie na tejto adrese sa líši od pôvodného",
+      "cannot_connect": "Nedá sa pripojiť k zariadeniu",
+      "reconfigure_successful": "Rekonfigurácia úspešná"
     },
     "step": {
       "user": {
@@ -18,8 +20,8 @@
       }
     },
     "error": {
-      "host": "Je požadovaná adresa zariadenia",
-      "connect": "Nemôžné pripojiť sa k zariadeniu"
+      "invalid_host": "Neplatný názov hostiteľa alebo IP adresa",
+      "cannot_connect": "Nedá sa pripojiť k zariadeniu"
     }
   }
 }

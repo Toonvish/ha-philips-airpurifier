@@ -76,7 +76,32 @@ class PhilipsAirPurifierConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             raise
         except Exception as ex:
             _LOGGER.warning(r"Failed to connect: %s", ex)
-            raise exceptions.ConfigEntryNotReady from ex
+            raise CannotConnect from ex
+
+    def _async_find_matching_entry(self) -> config_entries.ConfigEntry | None:
+        """Find an existing entry for the discovered device by MAC or host."""
+        for entry in self._async_current_entries(include_ignore=False):
+            if self._mac and entry.data.get(CONF_MAC) == self._mac:
+                return entry
+            if entry.data.get(CONF_HOST) == self._host:
+                return entry
+        return None
+
+    def _async_update_existing_entry(self, entry: config_entries.ConfigEntry) -> None:
+        """Update host and MAC of an existing entry from discovery info."""
+        updates: dict[str, Any] = {CONF_HOST: self._host}
+        if self._mac:
+            updates[CONF_MAC] = self._mac
+        if all(entry.data.get(key) == value for key, value in updates.items()):
+            return
+        _LOGGER.debug(
+            "Updating entry %s with host %s and mac %s",
+            entry.entry_id,
+            self._host,
+            self._mac,
+        )
+        self.hass.config_entries.async_update_entry(entry, data={**entry.data, **updates})
+        self.hass.config_entries.async_schedule_reload(entry.entry_id)
 
     async def async_step_dhcp(self, discovery_info: DhcpServiceInfo) -> ConfigFlowResult:
         """Handle initial step of auto discovery flow."""
@@ -89,16 +114,18 @@ class PhilipsAirPurifierConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self._mac = format_mac(discovery_info.macaddress)
         _LOGGER.debug("trying to configure host: %s (mac: %s)", self._host, self._mac)
 
+        # Match the discovery against existing entries by MAC (stable across
+        # IP changes) or host before opening a CoAP connection. The purifiers
+        # only serve a single CoAP client, so probing an already configured
+        # device can disrupt its active connection, and a device that just
+        # changed IP may not answer in time at all (issue #8).
+        if (entry := self._async_find_matching_entry()) is not None:
+            self._async_update_existing_entry(entry)
+            return self.async_abort(reason="already_configured")
+
         # let's try and connect to an AirPurifier
         try:
-            _LOGGER.debug("trying to get status")
-            status = await async_fetch_status(
-                self._host,
-                connect_timeout=30,
-                status_timeout=30,
-                create_client=CoAPClient.create,
-            )
-            _LOGGER.debug("got status")
+            status = await self._async_probe_host(self._host)
 
             # Log the keys from the fetched status payload for debugging.
             _LOGGER.debug("status keys for host %s: %s", self._host, list(status.keys()))
@@ -108,11 +135,10 @@ class PhilipsAirPurifierConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 r"Timeout, host %s looks like a Philips AirPurifier but doesn't answer, aborting",
                 self._host,
             )
-            return self.async_abort(reason="model_unsupported")
+            return self.async_abort(reason="cannot_connect")
 
-        except Exception as ex:
-            _LOGGER.warning(r"Failed to connect: %s", ex)
-            raise exceptions.ConfigEntryNotReady from ex
+        except InvalidHost, CannotConnect:
+            return self.async_abort(reason="cannot_connect")
 
         # autodetect model
         self._model = extract_model(status)
@@ -155,7 +181,7 @@ class PhilipsAirPurifierConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         # use the device ID as unique_id
         unique_id = self._device_id
-        _LOGGER.debug("async_step_user: unique_id=%s", unique_id)
+        _LOGGER.debug("async_step_dhcp: unique_id=%s", unique_id)
 
         # set the unique id for the entry, abort if it already exists.
         # Update the stored host (and MAC) so a re-discovered device with a new
@@ -223,10 +249,12 @@ class PhilipsAirPurifierConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 if not isinstance(host_input, str):
                     raise InvalidHost  # noqa: TRY301  # pragma: no cover
 
-                try:
-                    status = await self._async_probe_host(host_input)
-                except TimeoutError:
-                    return self.async_abort(reason="timeout")
+                # Don't probe a device that is already configured at this
+                # host: the purifiers only serve a single CoAP client, so a
+                # probe can disrupt the active connection.
+                self._async_abort_entries_match({CONF_HOST: host_input})
+
+                status = await self._async_probe_host(host_input)
 
                 # autodetect model
                 self._model = extract_model(status)
@@ -284,9 +312,9 @@ class PhilipsAirPurifierConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 return self.async_create_entry(title=config_entry_name, data=config_entry_data)
 
             except InvalidHost:
-                errors[CONF_HOST] = "host"
-            except exceptions.ConfigEntryNotReady:
-                errors[CONF_HOST] = "connect"
+                errors[CONF_HOST] = "invalid_host"
+            except TimeoutError, CannotConnect:
+                errors[CONF_HOST] = "cannot_connect"
 
         if config_entry_data is None:
             config_entry_data = {}
@@ -312,7 +340,7 @@ class PhilipsAirPurifierConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             host_input = user_input.get(CONF_HOST)
             if not isinstance(host_input, str):
-                errors[CONF_HOST] = "host"  # pragma: no cover
+                errors[CONF_HOST] = "invalid_host"  # pragma: no cover
             else:
                 try:
                     status = await self._async_probe_host(host_input)
@@ -325,10 +353,8 @@ class PhilipsAirPurifierConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     await self.hass.config_entries.async_reload(entry.entry_id)
                     return self.async_abort(reason="reconfigure_successful")
                 except InvalidHost:
-                    errors[CONF_HOST] = "host"
-                except TimeoutError:
-                    errors[CONF_HOST] = "cannot_connect"
-                except exceptions.ConfigEntryNotReady:
+                    errors[CONF_HOST] = "invalid_host"
+                except TimeoutError, CannotConnect:
                     errors[CONF_HOST] = "cannot_connect"
 
         schema = self._get_schema({CONF_HOST: entry.data.get(CONF_HOST, "")})
@@ -337,3 +363,7 @@ class PhilipsAirPurifierConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 class InvalidHost(exceptions.HomeAssistantError):
     """Error to indicate that hostname/IP address is invalid."""
+
+
+class CannotConnect(exceptions.HomeAssistantError):
+    """Error to indicate that the device could not be reached."""

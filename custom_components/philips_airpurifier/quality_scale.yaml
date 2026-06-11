@@ -55,9 +55,13 @@ rules:
   # Gold
   discovery:
     status: done
-    comment: DHCP discovery via MAC address prefixes.
+    comment: DHCP discovery via MAC address prefixes and registered devices.
   discovery-update-info:
     status: done
+    comment: >-
+      DHCP discoveries are matched against existing entries by MAC (or host)
+      before any network I/O; the stored host is updated and the entry
+      reloaded when the device IP changes.
   reconfiguration-flow:
     status: done
   dynamic-devices:

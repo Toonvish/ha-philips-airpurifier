@@ -7,6 +7,7 @@ TEST_MODEL = "AC3858/51"
 TEST_NAME = "Living Room"
 TEST_DEVICE_ID = "aabbccddeeff"
 TEST_MAC = "b0f893123456"  # MAC address must be lowercase without colons for DHCP
+TEST_MAC_FORMATTED = "b0:f8:93:12:34:56"  # TEST_MAC as stored by format_mac()
 
 # Gen1 device status (AC3858/51 pattern)
 MOCK_STATUS_GEN1: dict = {

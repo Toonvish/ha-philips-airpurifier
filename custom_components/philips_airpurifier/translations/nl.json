@@ -4,7 +4,9 @@
     "abort": {
       "already_configured": "Apparaat is al geconfigureerd",
       "model_unsupported": "Model wordt niet ondersteund",
-      "timeout": "Time-out, kan geen verbinding maken met het apparaat"
+      "different_device": "Het apparaat op dit adres is een ander apparaat dan het oorspronkelijke",
+      "cannot_connect": "Kan geen verbinding maken met het apparaat",
+      "reconfigure_successful": "Herconfiguratie geslaagd"
     },
     "step": {
       "user": {
@@ -18,8 +20,8 @@
       }
     },
     "error": {
-      "host": "Apparaatadres is vereist",
-      "connect": "Kan geen verbinding maken met het apparaat"
+      "invalid_host": "Ongeldige hostnaam of IP-adres",
+      "cannot_connect": "Kan geen verbinding maken met het apparaat"
     }
   },
   "entity": {

@@ -4,7 +4,9 @@
     "abort": {
       "already_configured": "Dispozitiv deja configurat",
       "model_unsupported": "Modelul nu este suportat",
-      "timeout": "Timeout, nu se poate conecta la dispozitiv"
+      "different_device": "Dispozitivul de la această adresă este diferit de cel inițial",
+      "cannot_connect": "Nu se poate conecta la dispozitiv",
+      "reconfigure_successful": "Reconfigurare reușită"
     },
     "step": {
       "user": {
@@ -18,8 +20,8 @@
       }
     },
     "error": {
-      "host": "Adresa dispozitivului este obligatorie",
-      "connect": "Nu se poate conecta la dispozitiv"
+      "invalid_host": "Nume de gazdă sau adresă IP invalidă",
+      "cannot_connect": "Nu se poate conecta la dispozitiv"
     }
   }
 }

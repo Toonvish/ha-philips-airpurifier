@@ -7,7 +7,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.philips_airpurifier.const import CONF_STATUS, DOMAIN
+from custom_components.philips_airpurifier.const import (
+    CONF_STATUS,
+    DOMAIN,
+    OPT_FILTER_WARNING_ACK,
+)
 from custom_components.philips_airpurifier.repairs import (
     ConfigurationMigrationFlow,
     ConnectivityRepairFlow,
@@ -169,6 +173,22 @@ async def test_filter_replacement_flow_acknowledge(hass: HomeAssistant) -> None:
     assert result["type"] == "create_entry"
     assert result["title"] == "Filter Warning Acknowledged"
     assert result["data"]["result"] == "warning_acknowledged"
+
+
+async def test_filter_replacement_flow_acknowledge_persists_option(
+    hass: HomeAssistant,
+) -> None:
+    """Test acknowledging persists the ack flag on the linked config entry."""
+    entry = MockConfigEntry(domain=DOMAIN, data={}, options={})
+    entry.add_to_hass(hass)
+
+    flow = FilterReplacementWarningFlow(data={"entry_id": entry.entry_id})
+    flow.hass = hass
+
+    result = await flow.async_step_acknowledge_warning()
+
+    assert result["type"] == "create_entry"
+    assert entry.options[OPT_FILTER_WARNING_ACK] is True
 
 
 async def test_configuration_migration_flow_init_step(hass: HomeAssistant) -> None:

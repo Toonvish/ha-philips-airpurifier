@@ -427,11 +427,11 @@ async def test_select_async_select_option_valueerror_branch(
     await entity.async_select_option("pm25")
 
 
-async def test_select_current_option_unknown_value_returns_string_none(
+async def test_select_current_option_unknown_value_returns_none(
     hass: HomeAssistant,
     init_integration: MockConfigEntry,
 ) -> None:
-    """Test current_option returns stringified None for unknown raw option value."""
+    """Test current_option returns None for unknown raw option value."""
     entity_registry = er.async_get(hass)
     entries = er.async_entries_for_config_entry(entity_registry, init_integration.entry_id)
     select_entry = next(e for e in entries if e.domain == SELECT_DOMAIN and "preferred_index" in e.entity_id)
@@ -442,7 +442,7 @@ async def test_select_current_option_unknown_value_returns_string_none(
     coordinator.async_set_updated_data(coordinator.data)
     await hass.async_block_till_done()
 
-    assert entity.current_option == "None"
+    assert entity.current_option is None
 
 
 async def test_select_setup_entry_ac4220_invokes_duplicate_cleanup(hass: HomeAssistant) -> None:

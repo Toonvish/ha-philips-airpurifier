@@ -4,7 +4,9 @@
     "abort": {
       "already_configured": "Gerät is bereits konfiguriert",
       "model_unsupported": "Modell nicht unterstützt",
-      "timeout": "Timeout, Verbindung zum Gerät nicht möglich"
+      "different_device": "Das Gerät an dieser Adresse ist nicht das ursprüngliche Gerät",
+      "cannot_connect": "Verbindung zum Gerät nicht möglich",
+      "reconfigure_successful": "Neukonfiguration erfolgreich"
     },
     "step": {
       "user": {
@@ -18,8 +20,8 @@
       }
     },
     "error": {
-      "host": "Adress des Geräts ist erforderlich",
-      "connect": "Verbindung zum Gerät nicht möglich"
+      "invalid_host": "Ungültiger Hostname oder IP-Adresse",
+      "cannot_connect": "Verbindung zum Gerät nicht möglich"
     }
   },
   "entity": {

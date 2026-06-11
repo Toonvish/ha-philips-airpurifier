@@ -111,3 +111,9 @@ def test_non_integer_code_is_treated_as_zero() -> None:
     entity, coordinator = _make_event_entity({PhilipsApi.ERROR_CODE: "n/a"})
     entity._handle_coordinator_update()
     assert entity._last_code == 0
+
+
+def test_read_code_without_error_key_returns_none() -> None:
+    """_read_code returns (None, 0) when the status no longer has an error key."""
+    entity, _coordinator = _make_event_entity({})
+    assert entity._read_code() == (None, 0)

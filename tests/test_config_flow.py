@@ -9,6 +9,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.philips_airpurifier.const import (
     CONF_DEVICE_ID,
+    CONF_MAC,
     CONF_MODEL,
     CONF_STATUS,
     DOMAIN,
@@ -25,6 +26,7 @@ from .const import (
     TEST_DEVICE_ID,
     TEST_HOST,
     TEST_MAC,
+    TEST_MAC_FORMATTED,
     TEST_MODEL,
     TEST_NAME,
 )
@@ -91,22 +93,18 @@ async def test_user_flow_invalid_host(hass: HomeAssistant) -> None:
 
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "user"
-    assert result["errors"] == {CONF_HOST: "host"}
+    assert result["errors"] == {CONF_HOST: "invalid_host"}
 
 
 async def test_user_flow_timeout(
     hass: HomeAssistant,
     mock_coap_client_config_flow: AsyncMock,
 ) -> None:
-    """Test user flow when connection times out."""
+    """Test user flow shows cannot_connect error when connection times out."""
     mock_coap_client_config_flow.get_status.side_effect = TimeoutError
 
-    # Also make the CoAPClient.create timeout by patching it on the class mock
-    # Actually, the timeout wraps the create+get_status calls. We need the
-    # TimeoutManager's async_timeout to raise TimeoutError.
-    # The simplest approach: make CoAPClient.create raise TimeoutError
-    from unittest.mock import patch
-
+    # The timeout wraps the create+get_status calls. The simplest approach:
+    # make CoAPClient.create raise TimeoutError.
     with patch(
         "custom_components.philips_airpurifier.config_flow.CoAPClient",
     ) as mock_cls:
@@ -119,8 +117,9 @@ async def test_user_flow_timeout(
             user_input={CONF_HOST: TEST_HOST},
         )
 
-        assert result["type"] is FlowResultType.ABORT
-        assert result["reason"] == "timeout"
+        assert result["type"] is FlowResultType.FORM
+        assert result["step_id"] == "user"
+        assert result["errors"] == {CONF_HOST: "cannot_connect"}
 
 
 async def test_user_flow_unknown_error(
@@ -129,17 +128,10 @@ async def test_user_flow_unknown_error(
 ) -> None:
     """Test user flow when connection fails with unknown error.
 
-    Generic exceptions are wrapped as ConfigEntryNotReady, then caught
-    and shown as errors[CONF_HOST] = "connect".
+    Generic exceptions are wrapped as CannotConnect, then caught
+    and shown as errors[CONF_HOST] = "cannot_connect".
     """
     mock_coap_client_config_flow.get_status.side_effect = Exception("Unknown error")
-
-    # The exception happens inside the inner try block (not the TimeoutManager),
-    # so it gets caught as a generic Exception -> ConfigEntryNotReady -> "connect"
-    # But we need to make sure it doesn't get caught by TimeoutError first.
-    # Since get_status raises Exception (not TimeoutError), it goes to the
-    # `except Exception` branch -> raises ConfigEntryNotReady -> outer except catches it.
-    from unittest.mock import patch
 
     with patch(
         "custom_components.philips_airpurifier.config_flow.CoAPClient",
@@ -158,7 +150,7 @@ async def test_user_flow_unknown_error(
 
         assert result["type"] is FlowResultType.FORM
         assert result["step_id"] == "user"
-        assert result["errors"] == {CONF_HOST: "connect"}
+        assert result["errors"] == {CONF_HOST: "cannot_connect"}
 
 
 async def test_user_flow_model_unsupported(
@@ -167,8 +159,6 @@ async def test_user_flow_model_unsupported(
     """Test user flow with unsupported model."""
     unsupported_status = MOCK_STATUS_GEN1.copy()
     unsupported_status["modelid"] = "UNSUPPORTED_MODEL"
-
-    from unittest.mock import patch
 
     with patch(
         "custom_components.philips_airpurifier.config_flow.CoAPClient",
@@ -282,9 +272,7 @@ async def test_dhcp_discovery_success(
 
 
 async def test_dhcp_discovery_timeout(hass: HomeAssistant) -> None:
-    """Test DHCP discovery with timeout aborts as model_unsupported."""
-    from unittest.mock import patch
-
+    """Test DHCP discovery with timeout aborts as cannot_connect."""
     with patch(
         "custom_components.philips_airpurifier.config_flow.CoAPClient",
     ) as mock_cls:
@@ -301,15 +289,13 @@ async def test_dhcp_discovery_timeout(hass: HomeAssistant) -> None:
         )
 
         assert result["type"] is FlowResultType.ABORT
-        assert result["reason"] == "model_unsupported"
+        assert result["reason"] == "cannot_connect"
 
 
 async def test_dhcp_discovery_model_unsupported(hass: HomeAssistant) -> None:
     """Test DHCP discovery with unsupported model."""
     unsupported_status = MOCK_STATUS_GEN1.copy()
     unsupported_status["modelid"] = "UNSUPPORTED_MODEL"
-
-    from unittest.mock import patch
 
     with patch(
         "custom_components.philips_airpurifier.config_flow.CoAPClient",
@@ -363,16 +349,162 @@ async def test_dhcp_discovery_already_configured(
 
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "already_configured"
-    # Check that the host was updated
+    # Check that the host was updated and the MAC stored for future matching
     assert entry.data[CONF_HOST] == TEST_HOST
+    assert entry.data[CONF_MAC] == TEST_MAC_FORMATTED
+
+
+async def test_dhcp_discovery_mac_match_updates_host_without_probe(
+    hass: HomeAssistant,
+) -> None:
+    """Test DHCP discovery of a known device (by MAC) with a new IP.
+
+    The flow must update the stored host and abort without opening a CoAP
+    connection: the device only serves a single client and may not even be
+    reachable yet during an IP transition (issue #8).
+    """
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_HOST: "192.168.1.200",
+            CONF_MAC: TEST_MAC_FORMATTED,
+            CONF_MODEL: TEST_MODEL,
+            CONF_NAME: TEST_NAME,
+            CONF_DEVICE_ID: TEST_DEVICE_ID,
+            CONF_STATUS: MOCK_STATUS_GEN1,
+        },
+        unique_id=TEST_DEVICE_ID,
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.philips_airpurifier.config_flow.CoAPClient",
+    ) as mock_cls:
+        mock_cls.create = AsyncMock(side_effect=AssertionError("must not connect"))
+
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": SOURCE_DHCP},
+            data=DhcpServiceInfo(
+                ip=TEST_HOST,
+                macaddress=TEST_MAC,
+                hostname="philips-air",
+            ),
+        )
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert entry.data[CONF_HOST] == TEST_HOST
+    mock_cls.create.assert_not_called()
+
+
+async def test_dhcp_discovery_host_match_backfills_mac(
+    hass: HomeAssistant,
+) -> None:
+    """Test DHCP discovery backfills the MAC on a legacy entry matched by host."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_HOST: TEST_HOST,
+            CONF_MODEL: TEST_MODEL,
+            CONF_NAME: TEST_NAME,
+            CONF_DEVICE_ID: TEST_DEVICE_ID,
+            CONF_STATUS: MOCK_STATUS_GEN1,
+        },
+        unique_id=TEST_DEVICE_ID,
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.philips_airpurifier.config_flow.CoAPClient",
+    ) as mock_cls:
+        mock_cls.create = AsyncMock(side_effect=AssertionError("must not connect"))
+
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": SOURCE_DHCP},
+            data=DhcpServiceInfo(
+                ip=TEST_HOST,
+                macaddress=TEST_MAC,
+                hostname="philips-air",
+            ),
+        )
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert entry.data[CONF_MAC] == TEST_MAC_FORMATTED
+    mock_cls.create.assert_not_called()
+
+
+async def test_dhcp_discovery_known_device_unchanged_no_reload(
+    hass: HomeAssistant,
+) -> None:
+    """Test DHCP discovery of a known device with unchanged data does not reload."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_HOST: TEST_HOST,
+            CONF_MAC: TEST_MAC_FORMATTED,
+            CONF_MODEL: TEST_MODEL,
+            CONF_NAME: TEST_NAME,
+            CONF_DEVICE_ID: TEST_DEVICE_ID,
+            CONF_STATUS: MOCK_STATUS_GEN1,
+        },
+        unique_id=TEST_DEVICE_ID,
+    )
+    entry.add_to_hass(hass)
+
+    with patch.object(hass.config_entries, "async_schedule_reload") as reload_mock:
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": SOURCE_DHCP},
+            data=DhcpServiceInfo(
+                ip=TEST_HOST,
+                macaddress=TEST_MAC,
+                hostname="philips-air",
+            ),
+        )
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    reload_mock.assert_not_called()
+
+
+async def test_user_flow_known_host_aborts_without_probe(
+    hass: HomeAssistant,
+) -> None:
+    """Test user flow aborts for an already configured host without probing it."""
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        data={
+            CONF_HOST: TEST_HOST,
+            CONF_MODEL: TEST_MODEL,
+            CONF_NAME: TEST_NAME,
+            CONF_DEVICE_ID: TEST_DEVICE_ID,
+            CONF_STATUS: MOCK_STATUS_GEN1,
+        },
+        unique_id=TEST_DEVICE_ID,
+    )
+    entry.add_to_hass(hass)
+
+    with patch(
+        "custom_components.philips_airpurifier.config_flow.CoAPClient",
+    ) as mock_cls:
+        mock_cls.create = AsyncMock(side_effect=AssertionError("must not connect"))
+
+        result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"],
+            user_input={CONF_HOST: TEST_HOST},
+        )
+
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    mock_cls.create.assert_not_called()
 
 
 async def test_dhcp_discovery_unknown_error(hass: HomeAssistant) -> None:
-    """Test DHCP discovery with unknown error raises ConfigEntryNotReady."""
-    from unittest.mock import patch
-
-    from homeassistant import exceptions
-
+    """Test DHCP discovery with unknown error aborts as cannot_connect."""
     with patch(
         "custom_components.philips_airpurifier.config_flow.CoAPClient",
     ) as mock_cls:
@@ -381,16 +513,18 @@ async def test_dhcp_discovery_unknown_error(hass: HomeAssistant) -> None:
         client.shutdown = AsyncMock()
         mock_cls.create = AsyncMock(return_value=client)
 
-        with pytest.raises(exceptions.ConfigEntryNotReady):
-            await hass.config_entries.flow.async_init(
-                DOMAIN,
-                context={"source": SOURCE_DHCP},
-                data=DhcpServiceInfo(
-                    ip=TEST_HOST,
-                    macaddress=TEST_MAC,
-                    hostname="philips-air",
-                ),
-            )
+        result = await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": SOURCE_DHCP},
+            data=DhcpServiceInfo(
+                ip=TEST_HOST,
+                macaddress=TEST_MAC,
+                hostname="philips-air",
+            ),
+        )
+
+        assert result["type"] is FlowResultType.ABORT
+        assert result["reason"] == "cannot_connect"
 
 
 async def test_reconfigure_flow_success(
@@ -459,7 +593,7 @@ async def test_reconfigure_flow_invalid_host(
 
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "reconfigure"
-    assert result["errors"] == {CONF_HOST: "host"}
+    assert result["errors"] == {CONF_HOST: "invalid_host"}
 
 
 async def test_reconfigure_flow_cannot_connect(
@@ -667,8 +801,6 @@ async def test_user_flow_model_long_supported_branch(hass: HomeAssistant) -> Non
     status["modelid"] = "SYNTH"
     status["WifiVersion"] = "LONGKEY@1.0.0"
 
-    from unittest.mock import patch
-
     with (
         patch("custom_components.philips_airpurifier.config_flow.CoAPClient") as mock_cls,
         patch.dict(
@@ -697,8 +829,6 @@ async def test_dhcp_flow_model_family_supported_branch(hass: HomeAssistant) -> N
     status = MOCK_STATUS_GEN1.copy()
     status["modelid"] = "FAM001-EXTRA"
     status["WifiVersion"] = "IRRELEVANT@1.0.0"
-
-    from unittest.mock import patch
 
     with (
         patch("custom_components.philips_airpurifier.config_flow.CoAPClient") as mock_cls,
@@ -733,8 +863,6 @@ async def test_dhcp_flow_model_long_supported_branch(hass: HomeAssistant) -> Non
     status["modelid"] = "DHCPX"
     status["WifiVersion"] = "DHCPLONG@2.0.0"
 
-    from unittest.mock import patch
-
     with (
         patch("custom_components.philips_airpurifier.config_flow.CoAPClient") as mock_cls,
         patch.dict(
@@ -767,8 +895,6 @@ async def test_user_flow_model_family_supported_branch(hass: HomeAssistant) -> N
     status = MOCK_STATUS_GEN1.copy()
     status["modelid"] = "USR123-EXT"
     status["WifiVersion"] = "WHATEVER@1.0.0"
-
-    from unittest.mock import patch
 
     with (
         patch("custom_components.philips_airpurifier.config_flow.CoAPClient") as mock_cls,

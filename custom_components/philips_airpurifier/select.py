@@ -121,13 +121,12 @@ class PhilipsSelect(PhilipsAirPurifierEntity, SelectEntity):
         self.kind = kind.partition("#")[0]
 
     @property
-    def current_option(self) -> str:
-        """Return the currently selected option."""
+    def current_option(self) -> str | None:
+        """Return the currently selected option, or None if the value is unknown."""
         option = self._device_status.get(self.kind)
         selected_option = self._options.get(option)
-        current_option = str(option) if selected_option is None else selected_option
-        _LOGGER.debug("option: %s, returning as current_option: %s", option, current_option)
-        return current_option
+        _LOGGER.debug("option: %s, returning as current_option: %s", option, selected_option)
+        return selected_option
 
     async def async_select_option(self, option: str) -> None:
         """Select an option."""

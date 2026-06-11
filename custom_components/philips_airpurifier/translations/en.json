@@ -4,9 +4,9 @@
     "abort": {
       "already_configured": "Device already configured",
       "model_unsupported": "Model unsupported",
-      "timeout": "Timeout, cannot connect to device",
       "different_device": "The device at this address is different from the original",
-      "cannot_connect": "Cannot connect to device"
+      "cannot_connect": "Cannot connect to device",
+      "reconfigure_successful": "Reconfiguration successful"
     },
     "step": {
       "user": {
@@ -27,8 +27,7 @@
       }
     },
     "error": {
-      "host": "Device address is required",
-      "connect": "Cannot connect to device",
+      "invalid_host": "Invalid hostname or IP address",
       "cannot_connect": "Cannot connect to device"
     }
   },
