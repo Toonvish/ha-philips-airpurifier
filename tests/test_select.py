@@ -229,6 +229,11 @@ async def test_select_entity_category(
     # preferred_index should have entity_category CONFIG
     assert preferred_index_entry.entity_category == "config"
 
+    # fan_mode must have no entity category so it stays visible in device
+    # automation pickers (issue #2)
+    fan_mode_entry = next(e for e in select_entries if e.translation_key == "fan_mode")
+    assert fan_mode_entry.entity_category is None
+
 
 async def test_select_updates_on_coordinator_change(
     hass: HomeAssistant,

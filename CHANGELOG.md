@@ -38,6 +38,15 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.MM
 - `select` entities now report `None` (unknown) instead of the raw device
   value when the device sends an option value the integration does not know,
   matching the Home Assistant `SelectEntity` contract.
+- The fan mode select is no longer a configuration entity, so it appears in
+  device automation pickers again
+  ([#2](https://github.com/ruaan-deysel/ha-philips-airpurifier/issues/2)).
+- Declared the correct minimum Home Assistant version (2026.4.0, matching the
+  documented requirement) in `hacs.json` and the README badge. Home Assistant
+  releases before 2026.3 run Python 3.13, where the integration fails to load
+  with a syntax error
+  ([#45](https://github.com/ruaan-deysel/ha-philips-airpurifier/issues/45));
+  the previous HACS minimum of 2025.1.0 allowed broken installs.
 
 ### Changed
 

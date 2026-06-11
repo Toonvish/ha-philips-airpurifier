@@ -12,7 +12,7 @@
 [hacs]: https://hacs.xyz/docs/default_repositories
 [releases_shield]: https://img.shields.io/github/release/ruaan-deysel/ha-philips-airpurifier?style=flat-square&color=blue
 [latest_release]: https://github.com/ruaan-deysel/ha-philips-airpurifier/releases/latest
-[ha_shield]: https://img.shields.io/badge/Home%20Assistant-2025.1%2B-blue?style=flat-square
+[ha_shield]: https://img.shields.io/badge/Home%20Assistant-2026.4%2B-blue?style=flat-square
 [ha_link]: https://www.home-assistant.io/
 [docs_shield]: https://deepwiki.com/badge.svg
 [docs_link]: https://deepwiki.com/ruaan-deysel/ha-philips-airpurifier

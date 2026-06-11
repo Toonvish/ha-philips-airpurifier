@@ -6,7 +6,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from homeassistant.components.select import SelectEntity
-from homeassistant.const import ATTR_DEVICE_CLASS, CONF_ENTITY_CATEGORY, EntityCategory
+from homeassistant.const import ATTR_DEVICE_CLASS, CONF_ENTITY_CATEGORY
 from homeassistant.helpers.entity_registry import async_get as async_get_entity_registry
 
 from .const import OPTIONS, SELECT_TYPES, FanAttributes, PhilipsApi
@@ -158,7 +158,9 @@ class PhilipsFanModeSelect(PhilipsAirPurifierEntity, SelectEntity):
         """Initialize the fan mode select."""
         super().__init__(coordinator)
         self._attr_translation_key = FAN_MODE_KIND
-        self._attr_entity_category = EntityCategory.CONFIG
+        # No entity category: config/diagnostic entities are excluded from
+        # device automation pickers, and this select exists for automations
+        # (issue #2).
         self._attr_options = list(coordinator.model_config.preset_modes.keys())
         self._preset_modes_map = coordinator.model_config.preset_modes
         self._attr_unique_id = f"{coordinator.model}-{coordinator.device_id}-{FAN_MODE_KIND}"
