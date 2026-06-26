@@ -44,3 +44,7 @@ Thumbs.db
 # Home Assistant configuration
 config/*
 !config/configuration.yaml
+
+# Claude
+.claude/
+.claude/settings.json

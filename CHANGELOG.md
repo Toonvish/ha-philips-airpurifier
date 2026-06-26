@@ -7,6 +7,8 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.MM
 
 ## [Unreleased]
 
+## [2026.6.3] - 2026-06-27
+
 ### Added
 
 - Support for the **HU4209/00** (Philips Evaporative Humidifier Series 4000).
