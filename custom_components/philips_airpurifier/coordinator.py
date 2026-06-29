@@ -12,7 +12,7 @@ from philips_airctrl import CoAPClient
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-from .client import async_create_client
+from .client import async_create_client, async_fetch_status_with_nudge
 from .const import DOMAIN
 from .device_models import DEVICE_MODELS
 from .model import ApiGeneration, DeviceInformation, DeviceModelConfig
@@ -113,8 +113,34 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Set multiple control values on the device."""
         await self.client.set_control_values(data=values)
 
+    async def _async_nudge_fetch(self) -> dict[str, Any]:
+        """Fetch a status snapshot from a device that only pushes on change."""
+        nudge = self.model_config.status_nudge or []
+        return await async_fetch_status_with_nudge(self.host, nudge, create_client=CoAPClient.create)
+
+    async def _async_refresh_via_nudge(self) -> None:
+        """Fetch via nudge and publish the resulting status to listeners."""
+        status = await self._async_nudge_fetch()
+        self._timeout = DEFAULT_TIMEOUT
+        self._last_update = asyncio.get_event_loop().time()
+        self._mark_available()
+        self.async_set_updated_data(status)
+
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from the device (used for initial refresh and fallback)."""
+        if self.model_config.status_nudge:
+            # This firmware never answers a status read; ongoing state comes
+            # from the observe stream. Return the last pushed status if we have
+            # it, otherwise force one push via a nudge.
+            if self.data is not None:
+                self._mark_available()
+                return self.data
+            try:
+                return await self._async_nudge_fetch()
+            except Exception as err:
+                self._mark_unavailable("status update failed")
+                msg = f"Error communicating with device at {self.host}"
+                raise UpdateFailed(msg) from err
         try:
             # One-shot read: ongoing updates come from the observe stream, so
             # avoid registering a redundant observation (philips-airctrl >= 1.1.0).
@@ -136,6 +162,14 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._async_observe_status(),
             f"philips_airpurifier_observe_{self.host}",
         )
+
+        if self.model_config.status_nudge:
+            # Nudge-only devices push status only on a real state change, so an
+            # idle device legitimately sends nothing. A periodic watchdog would
+            # force needless reconnects (each re-toggling the nudge value) while
+            # the device is simply idle. Rely on observe-stream errors to detect
+            # real disconnects instead of a missed-update timer.
+            return
 
         if self._watchdog_task is not None:
             self._watchdog_task.cancel()
@@ -225,13 +259,17 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 await self.client.shutdown()
 
             self.client = await async_create_client(self.host, create_client=CoAPClient.create)
-            # One-shot read before re-establishing the observe stream.
-            status, timeout = await self.client.get_status(observe=False)
-            self._timeout = timeout
-            self._last_update = asyncio.get_event_loop().time()
+            if self.model_config.status_nudge:
+                # Re-fetch via nudge before re-establishing the observe stream.
+                await self._async_refresh_via_nudge()
+            else:
+                # One-shot read before re-establishing the observe stream.
+                status, timeout = await self.client.get_status(observe=False)
+                self._timeout = timeout
+                self._last_update = asyncio.get_event_loop().time()
+                self._mark_available()
+                self.async_set_updated_data(status)
             self._reconnect_delay = RECONNECT_INITIAL_DELAY
-            self._mark_available()
-            self.async_set_updated_data(status)
             _LOGGER.info("Reconnected to %s", self.host)
             self._start_observing()
         except asyncio.CancelledError:
@@ -249,6 +287,19 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def async_first_refresh_and_observe(self) -> None:
         """Perform first refresh and start observing."""
+        if self.model_config.status_nudge:
+            try:
+                # This firmware never answers a status read; force the first
+                # push with a nudge, then observe for subsequent changes.
+                await self._async_refresh_via_nudge()
+                _LOGGER.debug("First refresh (via nudge) completed for %s", self.host)
+            except Exception as err:
+                self._mark_unavailable("initial nudge refresh failed")
+                msg = f"Failed to connect to device at {self.host}"
+                raise ConfigEntryNotReady(msg) from err
+            self._start_observing()
+            return
+
         try:
             # One-shot initial read; continuous updates come from the observe
             # stream started below, so don't register a second observation here.

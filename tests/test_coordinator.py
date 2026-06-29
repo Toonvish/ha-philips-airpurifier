@@ -615,3 +615,89 @@ async def test_async_shutdown_cancels_all_existing_tasks(hass: HomeAssistant) ->
     assert coordinator._watchdog_task is None
     assert coordinator._reconnect_task is None
     assert coordinator._reconnect_retry_task is None
+
+
+_COORD = "custom_components.philips_airpurifier.coordinator"
+_CX_STATUS = {"D01S05": "CX7550/01", "D03102": 1}
+
+
+async def test_first_refresh_via_nudge_success(hass: HomeAssistant) -> None:
+    """Test the initial refresh for a nudge-only device publishes status."""
+    coordinator = _make_coordinator(hass, model="CX7550")
+
+    with (
+        patch(f"{_COORD}.async_fetch_status_with_nudge", AsyncMock(return_value=_CX_STATUS)),
+        patch.object(coordinator, "_start_observing"),
+    ):
+        await coordinator.async_first_refresh_and_observe()
+
+    assert coordinator.data == _CX_STATUS
+
+
+async def test_first_refresh_via_nudge_failure(hass: HomeAssistant) -> None:
+    """Test a failing nudge fetch raises ConfigEntryNotReady."""
+    coordinator = _make_coordinator(hass, model="CX7550")
+
+    with (
+        patch(f"{_COORD}.async_fetch_status_with_nudge", AsyncMock(side_effect=TimeoutError)),
+        patch.object(coordinator, "_start_observing"),
+        pytest.raises(ConfigEntryNotReady),
+    ):
+        await coordinator.async_first_refresh_and_observe()
+
+
+async def test_update_data_nudge_returns_cached(hass: HomeAssistant) -> None:
+    """Test polling a nudge-only device returns the last pushed status."""
+    coordinator = _make_coordinator(hass, model="CX7550")
+    coordinator.async_set_updated_data(_CX_STATUS)
+
+    result = await coordinator._async_update_data()
+
+    assert result == _CX_STATUS
+
+
+async def test_update_data_nudge_fetches_when_empty(hass: HomeAssistant) -> None:
+    """Test polling a nudge-only device with no data triggers a nudge fetch."""
+    coordinator = _make_coordinator(hass, model="CX7550")
+
+    with patch(f"{_COORD}.async_fetch_status_with_nudge", AsyncMock(return_value=_CX_STATUS)):
+        result = await coordinator._async_update_data()
+
+    assert result == _CX_STATUS
+
+
+async def test_update_data_nudge_failure_raises(hass: HomeAssistant) -> None:
+    """Test a failing nudge fetch during polling raises UpdateFailed."""
+    coordinator = _make_coordinator(hass, model="CX7550")
+
+    with (
+        patch(f"{_COORD}.async_fetch_status_with_nudge", AsyncMock(side_effect=Exception)),
+        pytest.raises(UpdateFailed),
+    ):
+        await coordinator._async_update_data()
+
+
+async def test_start_observing_nudge_skips_watchdog(hass: HomeAssistant) -> None:
+    """Test nudge-only devices start observing without a watchdog timer."""
+    coordinator = _make_coordinator(hass, model="CX7550")
+
+    with patch.object(coordinator, "_async_observe_status", AsyncMock()):
+        coordinator._start_observing()
+
+    assert coordinator._observe_task is not None
+    assert coordinator._watchdog_task is None
+    coordinator._observe_task.cancel()
+
+
+async def test_do_reconnect_nudge(hass: HomeAssistant) -> None:
+    """Test reconnect for a nudge-only device re-fetches via nudge."""
+    coordinator = _make_coordinator(hass, model="CX7550", client=AsyncMock())
+
+    with (
+        patch(f"{_COORD}.async_create_client", AsyncMock(return_value=AsyncMock())),
+        patch(f"{_COORD}.async_fetch_status_with_nudge", AsyncMock(return_value=_CX_STATUS)),
+        patch.object(coordinator, "_start_observing"),
+    ):
+        await coordinator._do_reconnect()
+
+    assert coordinator.data == _CX_STATUS

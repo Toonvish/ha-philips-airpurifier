@@ -1638,6 +1638,14 @@ DEVICE_MODELS: dict[str, DeviceModelConfig] = {
         switches=[PhilipsApi.NEW2_BEEP],
         selects=[PhilipsApi.NEW2_TIMER2],
         unavailable_sensors=[PhilipsApi.NEW2_FAN_SPEED, PhilipsApi.NEW2_GAS],
+        # This firmware never answers a status read; it only pushes status to
+        # observers on a real state change. Toggle the display backlight
+        # (D03105) to force the first push. "0 then 115" guarantees a change
+        # from any starting value and ends on a defined "low" brightness.
+        status_nudge=[
+            (PhilipsApi.NEW2_DISPLAY_BACKLIGHT2, 0),
+            (PhilipsApi.NEW2_DISPLAY_BACKLIGHT2, 115),
+        ],
     ),
     # =========================================================================
     # HU1509 / HU1510
