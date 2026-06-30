@@ -16,7 +16,7 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (`YYYY.MM
   the temperature sensor. Initial Wi-Fi setup requires the Philips Air app;
   control is fully local thereafter. The `AWS_Philips_AIR_Combo` firmware is
   push-only (never answers a status read), so the integration nudges the
-  display backlight to obtain status. While the fan is off the firmware forces
+  display backlight to obtain status. While the fan is off, the firmware forces
   a dim standby display that cannot be turned off from Home Assistant.
 
 ## [2026.6.3] - 2026-06-27

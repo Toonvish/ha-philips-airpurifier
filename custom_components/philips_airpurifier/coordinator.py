@@ -151,7 +151,14 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_refresh_via_nudge(self) -> None:
         """Fetch via nudge and publish the resulting status to listeners."""
+        # The nudge helper opens its own short-lived client. Single-client
+        # firmware evicts any other connection, so close the coordinator client
+        # first and recreate it afterwards — otherwise the observe stream started
+        # after this would attach to the connection the nudge just evicted.
+        with contextlib.suppress(Exception):
+            await self.client.shutdown()
         status = await self._async_nudge_fetch()
+        self.client = await async_create_client(self.host, create_client=CoAPClient.create)
         self._timeout = DEFAULT_TIMEOUT
         self._last_update = asyncio.get_event_loop().time()
         self._mark_available()
@@ -289,11 +296,14 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             with contextlib.suppress(Exception):
                 await self.client.shutdown()
 
-            self.client = await async_create_client(self.host, create_client=CoAPClient.create)
             if self.model_config.status_nudge:
                 # Re-fetch via nudge before re-establishing the observe stream.
+                # _async_refresh_via_nudge owns the coordinator client here: a
+                # client created now would be evicted by the nudge helper's
+                # temporary connection, so it (re)creates one after the nudge.
                 await self._async_refresh_via_nudge()
             else:
+                self.client = await async_create_client(self.host, create_client=CoAPClient.create)
                 # One-shot read before re-establishing the observe stream.
                 status, timeout = await self.client.get_status(observe=False)
                 self._timeout = timeout

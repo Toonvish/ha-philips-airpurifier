@@ -77,12 +77,13 @@ class DeviceModelConfig:
     # Special behavior flags
     requires_mode_cycling: bool = False  # AC1214 needs mode cycling
     # Some newer firmwares (e.g. CX7550 "AWS_Philips_AIR_Combo") never answer a
-    # status read and only push the status resource to *other* observers when a
-    # real state change occurs. For those devices we keep an observation open and
-    # send this sequence of (key, value) control writes from a second connection
-    # to elicit the first push. Each write must be a genuine change; the sequence
-    # should end on a benign, well-defined value. None = device serves status
-    # normally (the default for all other models).
+    # status read and only push the status resource when a real state change
+    # occurs. For those devices we open an observation and send this sequence of
+    # (key, value) control writes on the *same* CoAP client to elicit the first
+    # push — these firmwares serve only one client, so a second connection would
+    # evict the observer and the push would never arrive. Each write must be a
+    # genuine change; the sequence should end on a benign, well-defined value.
+    # None = device serves status normally (the default for all other models).
     status_nudge: list[tuple[str, Any]] | None = None
 
     @property
