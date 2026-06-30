@@ -1540,8 +1540,10 @@ DEVICE_MODELS: dict[str, DeviceModelConfig] = {
     # only set MODE_A + MODE_B.
     #
     # MODE_B values confirmed from device captures:
-    #   - manual speeds 1..12 -> 1..12 (one-to-one)
-    #   - auto adapt -> 0, sleep -> 17, natural -> -126, turbo (max) -> 82
+    #   - manual speeds 1..11 -> 1..11 (one-to-one); speed 12 (max) -> 82
+    #   - auto adapt -> 0, sleep -> 17, natural -> -126
+    # The top manual speed reports the special code 82 (not 12). There is no
+    # separate turbo preset on this model -- max speed (12) IS the boost.
     # Oscillation D0320F: off -> 0, on -> 80 (OSCILLATION_MAP4).
     # Display backlight D03105: off -> 0, low -> 115, full -> 123
     # (NEW2_DISPLAY_BACKLIGHT4).
@@ -1562,11 +1564,6 @@ DEVICE_MODELS: dict[str, DeviceModelConfig] = {
                 PhilipsApi.NEW2_POWER: 1,
                 PhilipsApi.NEW2_MODE_A: 1,
                 PhilipsApi.NEW2_MODE_B: -126,
-            },
-            PresetMode.TURBO: {
-                PhilipsApi.NEW2_POWER: 1,
-                PhilipsApi.NEW2_MODE_A: 1,
-                PhilipsApi.NEW2_MODE_B: 82,
             },
         },
         speeds={
@@ -1628,7 +1625,8 @@ DEVICE_MODELS: dict[str, DeviceModelConfig] = {
             PresetMode.SPEED_12: {
                 PhilipsApi.NEW2_POWER: 1,
                 PhilipsApi.NEW2_MODE_A: 1,
-                PhilipsApi.NEW2_MODE_B: 12,
+                # Top speed reports the special max code 82, not 12.
+                PhilipsApi.NEW2_MODE_B: 82,
             },
         },
         oscillation={
