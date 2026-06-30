@@ -689,6 +689,37 @@ async def test_start_observing_nudge_skips_watchdog(hass: HomeAssistant) -> None
     coordinator._observe_task.cancel()
 
 
+def test_build_status_nudge_defaults_without_data(hass: HomeAssistant) -> None:
+    """With no observed data the nudge uses the model's transient/resting pair."""
+    coordinator = _make_coordinator(hass, model="CX7550")
+
+    assert coordinator._build_status_nudge() == [("D03105", 0), ("D03105", 115)]
+
+
+def test_build_status_nudge_restores_display_off(hass: HomeAssistant) -> None:
+    """When the user left the display off, the nudge ends on off (0)."""
+    coordinator = _make_coordinator(hass, model="CX7550")
+    coordinator.async_set_updated_data({**_CX_STATUS, "D03105": 0})
+
+    # Goes through a different transient value (115) and returns to 0.
+    assert coordinator._build_status_nudge() == [("D03105", 115), ("D03105", 0)]
+
+
+def test_build_status_nudge_restores_custom_brightness(hass: HomeAssistant) -> None:
+    """The nudge ends on whatever backlight value was last observed."""
+    coordinator = _make_coordinator(hass, model="CX7550")
+    coordinator.async_set_updated_data({**_CX_STATUS, "D03105": 123})
+
+    assert coordinator._build_status_nudge() == [("D03105", 0), ("D03105", 123)]
+
+
+def test_build_status_nudge_empty_without_config(hass: HomeAssistant) -> None:
+    """A model without a status_nudge yields an empty sequence."""
+    coordinator = _make_coordinator(hass)
+
+    assert coordinator._build_status_nudge() == []
+
+
 async def test_do_reconnect_nudge(hass: HomeAssistant) -> None:
     """Test reconnect for a nudge-only device re-fetches via nudge."""
     coordinator = _make_coordinator(hass, model="CX7550", client=AsyncMock())

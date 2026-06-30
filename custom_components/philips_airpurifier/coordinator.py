@@ -113,9 +113,40 @@ class PhilipsAirPurifierCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Set multiple control values on the device."""
         await self.client.set_control_values(data=values)
 
+    def _build_status_nudge(self) -> list[tuple[str, Any]]:
+        """Build the nudge write sequence for a push-on-change device.
+
+        The model declares a default sequence: a transient value followed by a
+        resting value the device is left on. Writing a fixed resting value
+        clobbers a user setting on every nudge -- e.g. forcing the display
+        backlight back on after each reconnect, so the display can never be
+        turned off. Instead, end the sequence on the value we last observed for
+        that key (the user's choice), while still passing through a different
+        transient value first so the device sees a genuine change and pushes.
+        """
+        base = self.model_config.status_nudge or []
+        if not base:
+            return []
+
+        key = base[0][0]
+        transient = base[0][1]
+        resting = base[-1][1]
+
+        # Restore the user's last-known value for the nudged key when we have it.
+        if self.data is not None and self.data.get(key) is not None:
+            resting = self.data[key]
+
+        # The transient write must differ from the resting value, otherwise the
+        # device sees no change and never pushes. The model's two values differ,
+        # so fall back to the other one when the resting value collides.
+        if transient == resting:
+            transient = base[-1][1]
+
+        return [(key, transient), (key, resting)]
+
     async def _async_nudge_fetch(self) -> dict[str, Any]:
         """Fetch a status snapshot from a device that only pushes on change."""
-        nudge = self.model_config.status_nudge or []
+        nudge = self._build_status_nudge()
         return await async_fetch_status_with_nudge(self.host, nudge, create_client=CoAPClient.create)
 
     async def _async_refresh_via_nudge(self) -> None:

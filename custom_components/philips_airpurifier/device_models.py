@@ -1640,8 +1640,11 @@ DEVICE_MODELS: dict[str, DeviceModelConfig] = {
         unavailable_sensors=[PhilipsApi.NEW2_FAN_SPEED, PhilipsApi.NEW2_GAS],
         # This firmware never answers a status read; it only pushes status to
         # observers on a real state change. Toggle the display backlight
-        # (D03105) to force the first push. "0 then 115" guarantees a change
-        # from any starting value and ends on a defined "low" brightness.
+        # (D03105) to force the push. The two values are a (transient, resting)
+        # pair: the coordinator nudges through the transient value, then ends on
+        # the user's last-known backlight value (falling back to this resting
+        # value, "low", on first contact) so the nudge does not force the
+        # display back on every reconnect. See coordinator._build_status_nudge.
         status_nudge=[
             (PhilipsApi.NEW2_DISPLAY_BACKLIGHT2, 0),
             (PhilipsApi.NEW2_DISPLAY_BACKLIGHT2, 115),
